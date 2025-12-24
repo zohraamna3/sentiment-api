@@ -5,6 +5,14 @@ from contextlib import asynccontextmanager
 import joblib
 from typing import List
 import os
+import re
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+
+# NLTK resources (Backend startup par zaroori hain)
+nltk.download('stopwords')
+nltk.download('wordnet')
 
 # ==========================================
 # GLOBAL VARIABLES
@@ -15,61 +23,52 @@ MODEL_PATH = 'sentiment_model.pkl'
 VECTORIZER_PATH = 'vectorizer.pkl'
 
 # ==========================================
+# PREPROCESSING FUNCTION (Sync with Training)
+# ==========================================
+def preprocess_text(text):
+    """Raw review ko clean karna taake model sahi samajh sakay"""
+    text = str(text).lower()
+    text = text.replace('1st', 'first').replace('grnd', 'ground')
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    
+    stop_words = set(stopwords.words('english'))
+    # Sentiment ke liye zaroori alfaz ko nahi nikalna
+    negation_words = {'not', 'no', 'never', 'but', 'however', 'neither', 'nor', 'against'}
+    final_stop_words = stop_words - negation_words
+    
+    lemmatizer = WordNetLemmatizer()
+    words = text.split()
+    cleaned_words = [lemmatizer.lemmatize(w) for w in words if w not in final_stop_words]
+    return " ".join(cleaned_words)
+
+# ==========================================
 # MODEL LOADING FUNCTION
 # ==========================================
 def load_model():
-    """Saved model aur vectorizer ko load karo"""
     global model, vectorizer
-
-    if not os.path.exists(MODEL_PATH):
-        raise FileNotFoundError(f"❌ Model file nahi mili: {MODEL_PATH}")
-
-    if not os.path.exists(VECTORIZER_PATH):
-        raise FileNotFoundError(f"❌ Vectorizer file nahi mili: {VECTORIZER_PATH}")
-
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(VECTORIZER_PATH):
+        return False
     try:
         model = joblib.load(MODEL_PATH)
         vectorizer = joblib.load(VECTORIZER_PATH)
-        print("✅ Model aur Vectorizer successfully load ho gaye!")
+        print("✅ Model aur Vectorizer loaded!")
         return True
     except Exception as e:
-        print(f"❌ Error loading model: {e}")
+        print(f"❌ Error: {e}")
         return False
 
 # ==========================================
-# LIFESPAN HANDLER (NEW METHOD)
+# LIFESPAN HANDLER
 # ==========================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Startup aur Shutdown events handle karo
-    - yield se pehle: startup logic
-    - yield ke baad: shutdown logic
-    """
-    # ===== STARTUP =====
-    print("\n" + "="*60)
-    print("🚀 Starting Sentiment Analysis API...")
-    print("="*60)
-    
-    try:
-        if load_model():
-            print("✅ API is ready to accept requests!")
-        else:
-            print("⚠️  Warning: Model load nahi hua")
-    except FileNotFoundError as e:
-        print(f"⚠️  {e}")
-        print("💡 Tip: Pehle model train karo aur save karo")
-    except Exception as e:
-        print(f"⚠️  Error during startup: {e}")
-    
-    print("="*60 + "\n")
-    
-    yield  # Application runs here
-    
-    # ===== SHUTDOWN =====
-    print("\n" + "="*60)
-    print("👋 Shutting down API...")
-    print("="*60 + "\n")
+    print("\n🚀 Starting Sentiment Analysis API...")
+    if load_model():
+        print("✅ API is ready!")
+    else:
+        print("⚠️ Model files missing or corrupted.")
+    yield
+    print("\n👋 Shutting down API...")
 
 # ==========================================
 # FASTAPI APP SETUP
@@ -78,10 +77,9 @@ app = FastAPI(
     title="Sentiment Analysis API",
     description="Healthcare Review Sentiment Analysis",
     version="1.0.0",
-    lifespan=lifespan  # 👈 Lifespan handler yahan add karo
+    lifespan=lifespan
 )
 
-# CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -91,17 +89,10 @@ app.add_middleware(
 )
 
 # ==========================================
-# PYDANTIC MODELS
+# PYDANTIC MODELS (Same as yours)
 # ==========================================
 class ReviewRequest(BaseModel):
     review: str
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "review": "The doctor was very helpful and explained everything clearly"
-            }
-        }
 
 class SentimentResponse(BaseModel):
     review: str
@@ -110,17 +101,6 @@ class SentimentResponse(BaseModel):
 
 class BatchReviewRequest(BaseModel):
     reviews: List[str]
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "reviews": [
-                    "Great service!",
-                    "Very disappointed",
-                    "It was okay"
-                ]
-            }
-        }
 
 class BatchSentimentResponse(BaseModel):
     results: List[SentimentResponse]
@@ -131,107 +111,51 @@ class BatchSentimentResponse(BaseModel):
 # ==========================================
 @app.get("/")
 async def root():
-    """Health check endpoint"""
-    return {
-        "message": "Sentiment Analysis API is running! 🚀",
-        "status": "active",
-        "model_loaded": model is not None,
-        "endpoints": {
-            "predict": "/predict (POST)",
-            "batch_predict": "/predict/batch (POST)",
-            "health": "/health (GET)"
-        }
-    }
-
-@app.get("/health")
-async def health_check():
-    """Detailed health check"""
-    return {
-        "status": "healthy" if model is not None else "unhealthy",
-        "model_loaded": model is not None,
-        "vectorizer_loaded": vectorizer is not None,
-        "model_file_exists": os.path.exists(MODEL_PATH),
-        "vectorizer_file_exists": os.path.exists(VECTORIZER_PATH)
-    }
+    return {"status": "active", "model_loaded": model is not None}
 
 @app.post("/predict", response_model=SentimentResponse)
 async def predict_sentiment(request: ReviewRequest):
-    """Single review ka sentiment predict karo"""
-    
     if model is None or vectorizer is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model is not loaded. Please check server logs."
-        )
+        raise HTTPException(status_code=503, detail="Model not loaded")
 
-    if not request.review or len(request.review.strip()) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Review cannot be empty"
-        )
+    if not request.review.strip():
+        raise HTTPException(status_code=400, detail="Review is empty")
 
     try:
-        review_vec = vectorizer.transform([request.review])
+        # STEP 1: Preprocess (Important!)
+        cleaned_review = preprocess_text(request.review)
+        
+        # STEP 2: Vectorize
+        review_vec = vectorizer.transform([cleaned_review])
+        
+        # STEP 3: Predict
         sentiment = model.predict(review_vec)[0]
         
-        return SentimentResponse(
-            review=request.review,
-            sentiment=sentiment
-        )
-        
+        return SentimentResponse(review=request.review, sentiment=sentiment)
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Prediction failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/batch", response_model=BatchSentimentResponse)
 async def predict_batch_sentiment(request: BatchReviewRequest):
-    """Multiple reviews ka sentiment predict karo"""
-    
     if model is None or vectorizer is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model is not loaded. Please check server logs."
-        )
+        raise HTTPException(status_code=503, detail="Model not loaded")
 
-    if not request.reviews or len(request.reviews) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Reviews list cannot be empty"
-        )
-
-    valid_reviews = [r for r in request.reviews if r and len(r.strip()) > 0]
-
-    if len(valid_reviews) == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="All reviews are empty"
-        )
-
+    valid_reviews = [r for r in request.reviews if r and r.strip()]
+    
     try:
-        reviews_vec = vectorizer.transform(valid_reviews)
-        sentiments = model.predict(reviews_vec)
+        # Batch preprocessing
+        cleaned_list = [preprocess_text(r) for r in valid_reviews]
+        vecs = vectorizer.transform(cleaned_list)
+        sentiments = model.predict(vecs)
         
         results = [
-            SentimentResponse(review=review, sentiment=sentiment)
-            for review, sentiment in zip(valid_reviews, sentiments)
+            SentimentResponse(review=rev, sentiment=sent)
+            for rev, sent in zip(valid_reviews, sentiments)
         ]
-        
-        return BatchSentimentResponse(
-            results=results,
-            total_reviews=len(results)
-        )
-        
+        return BatchSentimentResponse(results=results, total_reviews=len(results))
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Batch prediction failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ==========================================
-# RUN
-# ==========================================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
