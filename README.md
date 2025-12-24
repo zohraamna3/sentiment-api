@@ -9,7 +9,21 @@ https://sentiment-api-production-a47d.up.railway.app
 
 ## Endpoints
 
-### 1. Single Review Prediction
+### 1. Status Check
+
+**GET** `https://sentiment-api-production-a47d.up.railway.app/`
+
+**Response:**
+```json
+{
+    "status": "active",
+    "model_loaded": true
+}
+```
+
+---
+
+### 2. Single Review Prediction
 
 **POST** `https://sentiment-api-production-a47d.up.railway.app/predict`
 
@@ -29,13 +43,14 @@ Content-Type: application/json
 ```json
 {
     "review": "The doctor was very helpful",
-    "sentiment": "positive"
+    "sentiment": "positive",
+    "confidence": "high"
 }
 ```
 
 ---
 
-### 2. Batch Prediction
+### 3. Batch Prediction
 
 **POST** `https://sentiment-api-production-a47d.up.railway.app/predict/batch`
 
@@ -59,9 +74,9 @@ Content-Type: application/json
 ```json
 {
     "results": [
-        {"review": "Doctor was excellent", "sentiment": "positive"},
-        {"review": "Worst experience ever", "sentiment": "negative"},
-        {"review": "Average service", "sentiment": "neutral"}
+        {"review": "Doctor was excellent", "sentiment": "positive", "confidence": "high"},
+        {"review": "Worst experience ever", "sentiment": "negative", "confidence": "high"},
+        {"review": "Average service", "sentiment": "neutral", "confidence": "high"}
     ],
     "total_reviews": 3
 }
@@ -69,24 +84,8 @@ Content-Type: application/json
 
 ---
 
-### 3. Health Check
-
-**GET** `https://sentiment-api-production-a47d.up.railway.app/health`
-
-**Response:**
-```json
-{
-    "status": "healthy",
-    "model_loaded": true,
-    "vectorizer_loaded": true,
-    "model_file_exists": true,
-    "vectorizer_file_exists": true
-}
-```
-
----
-
 ## Sentiment Values
+
 | Sentiment | Description |
 |-----------|-------------|
 | `positive` | Positive review |
