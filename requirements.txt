@@ -1,5 +1,6 @@
-pip install fastapi
-pip install "uvicorn[standard]"  
-pip install scikit-learn
-pip install pandas
-pip install joblib
+fastapi
+uvicorn[standard]
+scikit-learn
+pandas
+joblib
+pydantic
