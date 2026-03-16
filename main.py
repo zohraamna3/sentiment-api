@@ -11,16 +11,23 @@ from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 
 # NLTK resources (Backend startup par zaroori hain)
-nltk.download('stopwords')
-nltk.download('wordnet')
+# nltk.download('stopwords')
+# nltk.download('wordnet')
+
+nltk.data.path.append('/tmp/nltk_data')
+nltk.download('stopwords', download_dir='/tmp/nltk_data', quiet=True)
+nltk.download('wordnet', download_dir='/tmp/nltk_data', quiet=True)
 
 # ==========================================
 # GLOBAL VARIABLES
 # ==========================================
 model = None
 vectorizer = None
-MODEL_PATH = 'sentiment_model.pkl'
-VECTORIZER_PATH = 'vectorizer.pkl'
+# MODEL_PATH = 'sentiment_model.pkl'
+# VECTORIZER_PATH = 'vectorizer.pkl'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'sentiment_model.pkl')
+VECTORIZER_PATH = os.path.join(BASE_DIR, 'vectorizer.pkl')
 
 # ==========================================
 # PREPROCESSING FUNCTION (Sync with Training)
