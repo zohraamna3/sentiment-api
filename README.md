@@ -2,7 +2,7 @@
 
 ## Base URL
 ```
-https://sentiment-api-production-a47d.up.railway.app
+https://sentiment-ffqrr4mk2-zohraamna3s-projects.vercel.app
 ```
 
 ---
@@ -10,8 +10,7 @@ https://sentiment-api-production-a47d.up.railway.app
 ## Endpoints
 
 ### 1. Status Check
-
-**GET** `https://sentiment-api-production-a47d.up.railway.app/`
+**GET** `https://sentiment-ffqrr4mk2-zohraamna3s-projects.vercel.app/`
 
 **Response:**
 ```json
@@ -24,8 +23,7 @@ https://sentiment-api-production-a47d.up.railway.app
 ---
 
 ### 2. Single Review Prediction
-
-**POST** `https://sentiment-api-production-a47d.up.railway.app/predict`
+**POST** `https://sentiment-ffqrr4mk2-zohraamna3s-projects.vercel.app/predict`
 
 **Headers:**
 ```
@@ -51,8 +49,7 @@ Content-Type: application/json
 ---
 
 ### 3. Batch Prediction
-
-**POST** `https://sentiment-api-production-a47d.up.railway.app/predict/batch`
+**POST** `https://sentiment-ffqrr4mk2-zohraamna3s-projects.vercel.app/predict/batch`
 
 **Headers:**
 ```
@@ -84,10 +81,22 @@ Content-Type: application/json
 
 ---
 
-## Sentiment Values
+### 4. Interactive API Docs
+**Swagger UI:** `https://sentiment-ffqrr4mk2-zohraamna3s-projects.vercel.app/docs`
 
+---
+
+## Sentiment Values
 | Sentiment | Description |
 |-----------|-------------|
 | `positive` | Positive review |
 | `negative` | Negative review |
-| `neutral` | Neutral review |
+| `neutral`  | Neutral review |
+
+---
+
+## Tech Stack
+- **Framework:** FastAPI
+- **ML Model:** Scikit-learn
+- **Deployment:** Vercel
+- **Language:** Python
